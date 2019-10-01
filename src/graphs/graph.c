@@ -6,6 +6,15 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/wait.h>
+void execute_dot(char* filename, char* filename_ps)
+{
+	if (fork() == 0)execlp("dot", "dot", "-Tps", filename_ps, "-o", filename, NULL);
+	wait(NULL); // wait for the [dot] process to finish before proceeding
+	if (fork() == 0) execlp("rm", "rm", "-f", filename_ps, NULL);
+	if (fork() == 0) execlp("xdg-open", "xdg-open", filename, NULL);
+}
 
 Edge *allocEdge(int id, int u, int v, char *label, double weight){
 	Edge *e=malloc(sizeof(Edge));
@@ -115,10 +124,11 @@ void saveGraph(Graph *g, char *filename){
 }
 
 void drawGraph(Graph *g, char *filename){
-	char *fn=calloc(255,sizeof(char));
-	sprintf(fn,"%s.ps",filename);
-	FILE *f=fopen(fn, "w");
-	free(fn);
+	size_t len_filename = strlen(filename);
+	char *filename_ps = malloc(len_filename+4);
+	snprintf(filename_ps, len_filename+4, "%s.ps", filename);
+	FILE *f=fopen(filename_ps, "w");
+	//free(filename_ps);
 	if (!f){
 		fprintf(stderr, "Warning : Can't open the file %s\n", filename);
 		return;
@@ -158,15 +168,8 @@ void drawGraph(Graph *g, char *filename){
 	free(s_idv);
 	fprintf(f,"}");
 	fclose(f);
-	char *cmd = calloc(255,sizeof(char));
-	sprintf(cmd, "dot -Tps  %s.ps -o %s", filename, filename);
-	system(cmd);
-	memset(cmd,'\0',255);
-	sprintf(cmd,"rm -f %s.ps",filename);
-	system(cmd);
-	memset(cmd,'\0',255);
-	sprintf(cmd,"xdg-open %s",filename);
-	system(cmd);
+	execute_dot(filename, filename_ps);
+	free(filename_ps);
 }
 
 void freeGraph(Graph *g){
@@ -804,10 +807,11 @@ void drawFlood(Flood *flood, char *filename){
 		fprintf(stderr, "Warning : We try to draw a flood with wrong arguments\n");
 		return;
 	}
-	char *cmd = calloc(255,sizeof(char));
-	sprintf(cmd, "%s.ps",filename);	
-	FILE *f = fopen(cmd, "w");
-	memset(cmd, '\0', 255);
+	size_t len_filename = strlen(filename);
+	char *filename_ps = malloc(len_filename+4);
+	snprintf(filename_ps, len_filename+4, "%s.ps", filename);	
+	FILE *f = fopen(filename_ps, "w");
+	
 	if(f==NULL){
 		fprintf(stderr, "Error : we can't open %s\n",filename);
 		return ;
@@ -838,12 +842,6 @@ void drawFlood(Flood *flood, char *filename){
 	free(s_idv);
 	fprintf(f, "}\n");
 	fclose(f);
-	sprintf(cmd, "dot -Tps  %s.ps -o %s", filename, filename);
-	system(cmd);
-	memset(cmd,'\0',255);
-	sprintf(cmd,"rm -f %s.ps",filename);
-	system(cmd);
-	memset(cmd,'\0',255);
-	sprintf(cmd,"xdg-open %s",filename);
-	system(cmd);
+	execute_dot(filename, filename_ps);
+	free(filename_ps);
 }
